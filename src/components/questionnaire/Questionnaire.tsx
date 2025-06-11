@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import ResultsPage from './sections/ResultsPage';
+import ResultsPage from '../questionnaire/ResultsPage';
 
 // Types
 type QuestionType = 'text' | 'select' | 'radio' | 'checkbox' | 'email' | 'url';
