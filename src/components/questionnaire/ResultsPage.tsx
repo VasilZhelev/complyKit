@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { generateComplianceSummary } from '../../utils/ComplianceSummaryGeneration';
 
 type RiskLevel = 'HIGH_RISK' | 'LIMITED_RISK' | 'MINIMAL_RISK' | 'UNACCEPTABLE_RISK' | 'OUT_OF_SCOPE';
 
@@ -9,7 +10,45 @@ interface ResultsPageProps {
   answers: Record<string, any>;
 }
 
+
 const ResultsPage: React.FC<ResultsPageProps> = ({ riskLevel, companyName, answers }) => {
+  const [isAnalyzing, setIsAnalyzing] = useState(true);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const analysisSteps = [
+    'Analyzing system characteristics',
+    'Evaluating compliance requirements',
+    'Generating personalized insights',
+    'Preparing detailed recommendations'
+  ];
+
+  useEffect(() => {
+    const runAnalysis = async () => {
+      try {
+        // Start step progression
+        const stepInterval = setInterval(() => {
+          setCurrentStep(prev => (prev < analysisSteps.length - 1 ? prev + 1 : prev));
+        }, 1250);
+
+        // Get the AI analysis
+        const analysis = await generateComplianceSummary(answers, riskLevel);
+        
+        // Clear the interval and update state
+        clearInterval(stepInterval);
+        setIsAnalyzing(false);
+        setAiAnalysis(analysis);
+      } catch (error) {
+        console.error('Error during analysis:', error);
+        setIsAnalyzing(false);
+        setError('Failed to generate analysis');
+      }
+    };
+
+    runAnalysis();
+  }, [answers, riskLevel]);
+
   const getRiskLevelConfig = () => {
     const riskLevelConfig = {
       HIGH_RISK: {
@@ -251,7 +290,7 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ riskLevel, companyName, answe
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto relative">
+      <div className="max-w-6xl mx-auto relative">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -327,6 +366,126 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ riskLevel, companyName, answe
                         {config.riskAssessment.impact}
                       </p>
                     </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* AI Compliance Summary Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="mb-16"
+          >
+            <div className="text-center mb-12">
+              <h2 className="text-3xl font-bold text-gray-900 mb-4">
+                AI-Powered Compliance Analysis
+              </h2>
+              <p className="text-lg text-gray-600 max-w-3xl mx-auto">
+                Our AI analyzes your system to provide personalized compliance insights
+              </p>
+            </div>
+
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-purple-50 to-blue-50 rounded-3xl transform -rotate-1"></div>
+              <div className="relative bg-white rounded-3xl p-8 shadow-xl border border-gray-100">
+                {/* AI Analysis Header */}
+                <div className="flex items-center gap-4 mb-8">
+                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white text-3xl">
+                    🤖
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-bold text-gray-900">
+                      AI Compliance Analysis
+                    </h3>
+                    <p className="text-gray-600 mt-1">
+                      {isAnalyzing ? 'Analyzing your system...' : 'Analysis complete'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent my-6"></div>
+
+                <div className="space-y-8">
+                  {/* System Context */}
+                  <div className="bg-gray-50 rounded-xl p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="text-lg font-semibold text-gray-900">
+                        System Context
+                      </h4>
+                      <span className="text-sm text-purple-600 font-medium">
+                        {isAnalyzing ? 'Analyzing...' : 'Complete'}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <p className="text-sm text-gray-500 mb-1">Company</p>
+                        <p className="text-gray-900 font-medium">{companyName}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500 mb-1">Risk Classification</p>
+                        <p className="text-gray-900 font-medium">{config.title}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* AI Analysis Progress or Results */}
+                  <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-xl p-6 border border-purple-100">
+                    {isAnalyzing ? (
+                      <>
+                        <div className="flex items-center gap-3 mb-6">
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white text-xl">
+                            ⚡
+                          </div>
+                          <h4 className="text-lg font-semibold text-gray-900">
+                            AI Analysis in Progress
+                          </h4>
+                        </div>
+                        
+                        {/* Progress Steps */}
+                        <div className="space-y-4 mb-8">
+                          {analysisSteps.map((step, index) => (
+                            <div key={index} className="flex items-center gap-3">
+                              <div className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center">
+                                {index <= currentStep ? (
+                                  <div className="w-3 h-3 rounded-full bg-purple-500 animate-pulse"></div>
+                                ) : (
+                                  <div className="w-3 h-3 rounded-full bg-purple-200"></div>
+                                )}
+                              </div>
+                              <span className={`text-gray-700 ${index <= currentStep ? 'font-medium' : 'text-gray-400'}`}>
+                                {step}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Loading Animation */}
+                        <div className="relative">
+                          <div className="h-2 bg-purple-100 rounded-full overflow-hidden">
+                            <div 
+                              className="h-full bg-gradient-to-r from-purple-500 to-blue-500 rounded-full transition-all duration-500"
+                              style={{ width: `${((currentStep + 1) / analysisSteps.length) * 100}%` }}
+                            ></div>
+                          </div>
+                          <div className="absolute -bottom-6 left-0 right-0 text-center">
+                            <p className="text-sm text-gray-500">
+                              Generating your personalized compliance analysis...
+                            </p>
+                          </div>
+                        </div>
+                      </>
+                    ) : error ? (
+                      <div className="text-red-600 p-4 bg-red-50 rounded-lg">
+                        {error}
+                      </div>
+                    ) : (
+                      <div className="whitespace-pre-line text-gray-700 leading-relaxed">
+                        {aiAnalysis}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
