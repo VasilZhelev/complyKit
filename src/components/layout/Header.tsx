@@ -1,9 +1,21 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { useAuth } from '../../utils/AuthContext';
 
 const Header = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/');
+    } catch (error) {
+      console.error('Failed to log out:', error);
+    }
+  };
 
   return (
     <motion.header 
@@ -21,21 +33,41 @@ const Header = () => {
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-8">
-            <Link to="/" className="text-brand-primary hover:text-brand-accent transition-colors">
+            <a href="/#home" className="text-brand-primary hover:text-brand-accent transition-colors">
               Home
-            </Link>
-            <Link to="/questionnaire" className="text-brand-primary hover:text-brand-accent transition-colors">
+            </a>
+            <a href="/#features" className="text-brand-primary hover:text-brand-accent transition-colors">
               Features
-            </Link>
-            <Link to="/pricing" className="text-brand-primary hover:text-brand-accent transition-colors">
+            </a>
+            <a href="/#pricing" className="text-brand-primary hover:text-brand-accent transition-colors">
               Pricing
-            </Link>
-            <Link 
-              to="/questionnaire" 
-              className="bg-brand-primary text-white px-6 py-2.5 rounded-lg hover:bg-brand-accent hover:text-brand-primary transition-all"
-            >
-              Check Compliance
-            </Link>
+            </a>
+            {user ? (
+              <>
+                <Link to="/profile" className="text-brand-primary hover:text-brand-accent transition-colors">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link to="/login" className="text-brand-primary hover:text-brand-accent transition-colors border border-brand-primary px-4 py-2 rounded-lg hover:bg-brand-primary hover:text-white">
+                  Login
+                </Link>
+                <Link to="/signup" className="bg-brand-accent text-white px-4 py-2 rounded-lg hover:bg-brand-primary hover:text-white transition-all">
+                  Sign Up
+                </Link>
+              </>
+            )}
+            {!user && (
+              <Link 
+                to="/questionnaire" 
+                className="bg-brand-primary text-white px-6 py-2.5 rounded-lg hover:bg-brand-accent hover:text-brand-primary transition-all"
+              >
+                Check Compliance
+              </Link>
+            )}
           </nav>
 
           {/* Mobile Menu Button */}
@@ -70,34 +102,69 @@ const Header = () => {
             className="md:hidden py-4"
           >
             <div className="flex flex-col space-y-4">
-              <Link
-                to="/"
+              <a
+                href="/#home"
                 className="text-brand-primary hover:text-brand-accent transition-colors px-4 py-2"
                 onClick={() => setIsOpen(false)}
               >
                 Home
-              </Link>
-              <Link
-                to="/questionnaire"
+              </a>
+              <a
+                href="/#features"
                 className="text-brand-primary hover:text-brand-accent transition-colors px-4 py-2"
                 onClick={() => setIsOpen(false)}
               >
                 Features
-              </Link>
-              <Link
-                to="/pricing"
+              </a>
+              <a
+                href="/#pricing"
                 className="text-brand-primary hover:text-brand-accent transition-colors px-4 py-2"
                 onClick={() => setIsOpen(false)}
               >
                 Pricing
-              </Link>
-              <Link
-                to="/questionnaire"
-                className="bg-brand-primary text-white px-6 py-2.5 rounded-lg hover:bg-brand-accent hover:text-brand-primary transition-all mx-4"
-                onClick={() => setIsOpen(false)}
-              >
-                Check Compliance
-              </Link>
+              </a>
+              {user ? (
+                <>
+                  <Link
+                    to="/profile"
+                    className="text-brand-primary hover:text-brand-accent transition-colors px-4 py-2"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    <div className="flex items-center">
+                      <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                      Profile
+                    </div>
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link
+                    to="/login"
+                    className="text-brand-primary hover:text-brand-accent transition-colors border border-brand-primary px-4 py-2 rounded-lg hover:bg-brand-primary hover:text-white mx-4"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    Login
+                  </Link>
+                  <Link
+                    to="/signup"
+                    className="bg-brand-accent text-white px-4 py-2 rounded-lg hover:bg-brand-primary hover:text-white transition-all mx-4"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    Sign Up
+                  </Link>
+                </>
+              )}
+              {!user && (
+                <Link
+                  to="/questionnaire"
+                  className="bg-brand-primary text-white px-6 py-2.5 rounded-lg hover:bg-brand-accent hover:text-brand-primary transition-all mx-4"
+                  onClick={() => setIsOpen(false)}
+                >
+                  Check Compliance
+                </Link>
+              )}
             </div>
           </motion.div>
         )}

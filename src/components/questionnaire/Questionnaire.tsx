@@ -1,6 +1,9 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import ResultsPage from '../questionnaire/ResultsPage';
+import { useAuth } from '../../utils/AuthContext';
+import { setDocument } from '../../utils/firebase';
+import ResultsPage from './ResultsPage';
+import type { RiskLevel } from '../../types/questionnaire';
 
 // Types
 type QuestionType = 'text' | 'select' | 'radio' | 'checkbox' | 'email' | 'url';
@@ -24,8 +27,6 @@ interface QuestionnaireStep {
   description: string;
   questions: Question[];
 }
-
-type RiskLevel = 'UNACCEPTABLE_RISK' | 'HIGH_RISK' | 'LIMITED_RISK' | 'MINIMAL_RISK' | 'OUT_OF_SCOPE';
 
 // Questionnaire Steps Data
 const questionnaireSteps: QuestionnaireStep[] = [
@@ -202,7 +203,10 @@ const assessRisk = (answers: Record<string, string | string[]>): RiskLevel => {
   const purpose = (answers['purpose'] as string || '').toLowerCase();
   const useAreas = answers['use_areas'] as string[] || [];
   const dataTypes = answers['data_types'] as string[] || [];
+  const users = answers['users'] as string || '';
+  const humanOversight = answers['human_oversight'] as string || '';
 
+  // Unacceptable Risk: Social scoring and manipulative AI
   if (
     dataTypes.includes('Profiling or scoring individuals') &&
     (purpose.includes('social score') ||
@@ -213,124 +217,192 @@ const assessRisk = (answers: Record<string, string | string[]>): RiskLevel => {
     return 'UNACCEPTABLE_RISK';
   }
 
+  // Unacceptable Risk: Emotion recognition in sensitive areas
   if (
     dataTypes.includes('Emotional state recognition') &&
     (useAreas.includes('Hiring & Employee Management') ||
-      useAreas.includes('Education'))
+      useAreas.includes('Education') ||
+      useAreas.includes('Law Enforcement & Justice'))
   ) {
     return 'UNACCEPTABLE_RISK';
   }
 
-  // Level 2: High-Risk Check
+  // High Risk: Critical infrastructure and essential services
   if (
-    useAreas.some(area => area !== 'None of the above') ||
-    dataTypes.includes('Facial images or biometric data') ||
-    (answers['human_oversight'] === 'No, it\'s fully autonomous' &&
-      (useAreas.includes('Access to Services or Credit') ||
-        useAreas.includes('Hiring & Employee Management')))
+    useAreas.includes('Critical Infrastructure') ||
+    useAreas.includes('Law Enforcement & Justice') ||
+    useAreas.includes('Migration & Border Control') ||
+    useAreas.includes('Biometric Identification') ||
+    (useAreas.includes('Access to Services or Credit') && users === 'The general public (B2C)') ||
+    (useAreas.includes('Hiring & Employee Management') && users === 'The general public (B2C)')
   ) {
     return 'HIGH_RISK';
   }
 
-  // Level 3: Limited Risk Check
+  // High Risk: Biometric data processing
+  if (
+    dataTypes.includes('Facial images or biometric data') ||
+    dataTypes.includes('Voice patterns')
+  ) {
+    return 'HIGH_RISK';
+  }
+
+  // High Risk: Autonomous systems in sensitive areas
+  if (
+    humanOversight === 'No, it\'s fully autonomous' &&
+    (useAreas.includes('Access to Services or Credit') ||
+      useAreas.includes('Hiring & Employee Management') ||
+      useAreas.includes('Education'))
+  ) {
+    return 'HIGH_RISK';
+  }
+
+  // Limited Risk: AI systems with transparency requirements
   if (
     answers['ai_interaction'] === 'Yes' ||
     purpose.includes('avatar') ||
     purpose.includes('generate video') ||
     purpose.includes('voice cloning') ||
-    purpose.includes('deepfake')
+    purpose.includes('deepfake') ||
+    purpose.includes('chatbot') ||
+    purpose.includes('virtual assistant')
   ) {
     return 'LIMITED_RISK';
   }
 
-  // Level 4: Minimal Risk (Default)
-  return 'MINIMAL_RISK';
+  // Limited Risk: B2C applications
+  if (users === 'The general public (B2C)') {
+    return 'LIMITED_RISK';
+  }
+
+  // Minimal Risk: Internal use or B2B with human oversight
+  if (
+    users === 'Our internal team only' ||
+    (users === 'Business customers (B2B)' && humanOversight !== 'No, it\'s fully autonomous')
+  ) {
+    return 'MINIMAL_RISK';
+  }
+
+  // Default to Limited Risk for safety
+  return 'LIMITED_RISK';
 };
 
-// Custom Hook
-const useQuestionnaire = () => {
+const Questionnaire: React.FC = () => {
+  const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
-  const [isSubmitted, setIsSubmitted] = useState(false);
-  const [riskLevel, setRiskLevel] = useState<RiskLevel | null>(null);
+  const [showResults, setShowResults] = useState(false);
+  const [riskLevel, setRiskLevel] = useState<RiskLevel>('MINIMAL_RISK');
 
-  const setAnswer = useCallback((questionId: string, value: string | string[]) => {
-    setAnswers((prev) => ({
+  const handleAnswer = (questionId: string, value: string | string[]) => {
+    setAnswers(prev => ({
       ...prev,
-      [questionId]: value,
+      [questionId]: value
     }));
-  }, []);
+  };
 
-  const nextStep = useCallback(() => {
+  const handleNext = () => {
     if (currentStep < questionnaireSteps.length - 1) {
-      setCurrentStep((prev) => prev + 1);
+      setCurrentStep(prev => prev + 1);
+    } else {
+      // Calculate risk level when completing the questionnaire
+      const newRiskLevel = assessRisk(answers);
+      setRiskLevel(newRiskLevel);
+      setShowResults(true);
     }
-  }, [currentStep]);
+  };
 
-  const prevStep = useCallback(() => {
+  const handlePrevious = () => {
     if (currentStep > 0) {
-      setCurrentStep((prev) => prev - 1);
+      setCurrentStep(prev => prev - 1);
     }
-  }, [currentStep]);
+  };
 
-  const handleSubmit = useCallback(() => {
-    const calculatedRiskLevel = assessRisk(answers);
-    setRiskLevel(calculatedRiskLevel);
-    
-    // Save to localStorage
-    localStorage.setItem('complykit_questionnaire', JSON.stringify({
+  const handleSaveResults = async () => {
+    const score = calculateScore();
+    const result = {
+      userId: user?.uid,
+      timestamp: new Date().toISOString(),
       answers,
-      riskLevel: calculatedRiskLevel,
-      submittedAt: new Date().toISOString()
-    }));
+      score,
+      riskLevel
+    };
 
-    setIsSubmitted(true);
-  }, [answers]);
+    try {
+      if (user) {
+        // Save to database for logged-in users
+        await setDocument('questionnaire_results', result);
+        // Store in localStorage as backup
+        const savedResults = JSON.parse(localStorage.getItem('questionnaire_results') || '[]');
+        savedResults.push(result);
+        localStorage.setItem('questionnaire_results', JSON.stringify(savedResults));
+      } else {
+        // For non-logged-in users, store in localStorage
+        const savedResults = JSON.parse(localStorage.getItem('questionnaire_results') || '[]');
+        savedResults.push(result);
+        localStorage.setItem('questionnaire_results', JSON.stringify(savedResults));
+        // Redirect to signup with results in localStorage
+        window.location.href = '/signup?plan=pro&price=39';
+      }
+    } catch (error) {
+      console.error('Error saving results:', error);
+    }
+  };
+
+  // Check for saved results after login/signup
+  useEffect(() => {
+    const checkSavedResults = async () => {
+      if (user) {
+        const savedResults = JSON.parse(localStorage.getItem('questionnaire_results') || '[]');
+        if (savedResults.length > 0) {
+          try {
+            // Save all pending results to database
+            for (const result of savedResults) {
+              await setDocument('questionnaire_results', {
+                ...result,
+                userId: user.uid
+              });
+            }
+            // Clear localStorage after successful save
+            localStorage.removeItem('questionnaire_results');
+          } catch (error) {
+            console.error('Error saving pending results:', error);
+          }
+        }
+      }
+    };
+
+    checkSavedResults();
+  }, [user]);
+
+  const calculateScore = (): number => {
+    let score = 0;
+    const totalQuestions = Object.keys(answers).length;
+    
+    // Example scoring logic
+    if (answers['uses_ai'] === 'Yes') score += 20;
+    if (answers['eu_reach'] === 'Yes') score += 20;
+    if (answers['human_oversight'] === 'Yes, always') score += 20;
+    
+    return Math.round((score / totalQuestions) * 100);
+  };
 
   const isLastStep = currentStep === questionnaireSteps.length - 1;
   const isFirstStep = currentStep === 0;
   const progress = ((currentStep + 1) / questionnaireSteps.length) * 100;
 
-  return {
-    currentStep,
-    answers,
-    setAnswer,
-    nextStep,
-    prevStep,
-    isLastStep,
-    isFirstStep,
-    progress,
-    isSubmitted,
-    riskLevel,
-    handleSubmit
-  };
-};
-
-// Main Component
-const Questionnaire: React.FC = () => {
-  const {
-    currentStep,
-    answers,
-    setAnswer,
-    nextStep,
-    prevStep,
-    isLastStep,
-    isFirstStep,
-    progress,
-    isSubmitted,
-    riskLevel,
-    handleSubmit
-  } = useQuestionnaire();
+  if (showResults) {
+    return (
+      <ResultsPage
+        answers={answers}
+        riskLevel={riskLevel}
+        onSave={handleSaveResults}
+        isAuthenticated={!!user}
+      />
+    );
+  }
 
   const currentStepData = questionnaireSteps[currentStep];
-
-  if (isSubmitted && riskLevel) {
-    return <ResultsPage 
-      riskLevel={riskLevel} 
-      companyName={answers['company_name'] as string || 'Your Company'} 
-      answers={answers}
-    />;
-  }
 
   return (
     <div className="min-h-screen bg-brand-neutral-light py-12 px-4 sm:px-6 lg:px-8">
@@ -384,20 +456,20 @@ const Questionnaire: React.FC = () => {
                   )}
 
                   {question.type === 'text' && (
-              <input
+                    <input
                       type="text"
                       value={answers[question.id] || ''}
-                      onChange={(e) => setAnswer(question.id, e.target.value)}
+                      onChange={(e) => handleAnswer(question.id, e.target.value)}
                       className="w-full px-4 py-2 border border-brand-neutral-medium rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-transparent"
                       required={question.required}
                     />
                   )}
 
                   {question.type === 'email' && (
-              <input
+                    <input
                       type="email"
                       value={answers[question.id] || ''}
-                      onChange={(e) => setAnswer(question.id, e.target.value)}
+                      onChange={(e) => handleAnswer(question.id, e.target.value)}
                       className="w-full px-4 py-2 border border-brand-neutral-medium rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-transparent"
                       required={question.required}
                     />
@@ -407,16 +479,16 @@ const Questionnaire: React.FC = () => {
                     <input
                       type="url"
                       value={answers[question.id] || ''}
-                      onChange={(e) => setAnswer(question.id, e.target.value)}
+                      onChange={(e) => handleAnswer(question.id, e.target.value)}
                       className="w-full px-4 py-2 border border-brand-neutral-medium rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-transparent"
                       required={question.required}
                     />
                   )}
 
                   {question.type === 'select' && question.options && (
-              <select
+                    <select
                       value={answers[question.id] || ''}
-                      onChange={(e) => setAnswer(question.id, e.target.value)}
+                      onChange={(e) => handleAnswer(question.id, e.target.value)}
                       className="w-full px-4 py-2 border border-brand-neutral-medium rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-transparent"
                       required={question.required}
                     >
@@ -426,7 +498,7 @@ const Questionnaire: React.FC = () => {
                           {option}
                         </option>
                       ))}
-              </select>
+                    </select>
                   )}
 
                   {question.type === 'radio' && question.options && (
@@ -438,7 +510,7 @@ const Questionnaire: React.FC = () => {
                             name={question.id}
                             value={option}
                             checked={answers[question.id] === option}
-                            onChange={(e) => setAnswer(question.id, e.target.value)}
+                            onChange={(e) => handleAnswer(question.id, e.target.value)}
                             className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-brand-neutral-medium"
                             required={question.required}
                           />
@@ -461,7 +533,7 @@ const Questionnaire: React.FC = () => {
                               const newValues = e.target.checked
                                 ? [...currentValues, option]
                                 : currentValues.filter((v: string) => v !== option);
-                              setAnswer(question.id, newValues);
+                              handleAnswer(question.id, newValues);
                             }}
                             className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-brand-neutral-medium rounded"
                           />
@@ -479,14 +551,14 @@ const Questionnaire: React.FC = () => {
           <div className="mt-8 flex justify-between">
             {!isFirstStep && (
               <button
-                onClick={prevStep}
+                onClick={handlePrevious}
                 className="px-6 py-2 border border-brand-neutral-medium rounded-lg text-brand-primary hover:bg-brand-neutral-light transition-colors"
               >
                 ← Back
               </button>
             )}
             <button
-              onClick={isLastStep ? handleSubmit : nextStep}
+              onClick={handleNext}
               className={`px-6 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-dark transition-colors ${
                 isFirstStep ? 'ml-auto' : ''
               }`}
@@ -495,7 +567,7 @@ const Questionnaire: React.FC = () => {
             </button>
           </div>
         </motion.div>
-        </div>
+      </div>
     </div>
   );
 };

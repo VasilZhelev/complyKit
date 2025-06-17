@@ -19,7 +19,7 @@ const Pricing = () => {
     },
     {
       name: 'Pro',
-      price: '€49',
+      price: '€39',
       description: 'Everything you need for full compliance',
       features: [
         'Full risk assessment',

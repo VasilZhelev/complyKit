@@ -1,21 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { generateComplianceSummary } from '../../utils/ComplianceSummaryGeneration';
-
-type RiskLevel = 'HIGH_RISK' | 'LIMITED_RISK' | 'MINIMAL_RISK' | 'UNACCEPTABLE_RISK' | 'OUT_OF_SCOPE';
+import { Link, useNavigate } from 'react-router-dom';
+import type { RiskLevel } from '../../types/questionnaire';
 
 interface ResultsPageProps {
+  answers: Record<string, string | string[]>;
   riskLevel: RiskLevel;
-  companyName: string;
-  answers: Record<string, any>;
+  onSave: () => Promise<void>;
+  isAuthenticated: boolean;
 }
 
-
-const ResultsPage: React.FC<ResultsPageProps> = ({ riskLevel, companyName, answers }) => {
+const ResultsPage: React.FC<ResultsPageProps> = ({
+  answers,
+  riskLevel,
+  onSave,
+  isAuthenticated
+}) => {
   const [isAnalyzing, setIsAnalyzing] = useState(true);
   const [currentStep, setCurrentStep] = useState(0);
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState('');
+  const navigate = useNavigate();
 
   const analysisSteps = [
     'Analyzing system characteristics',
@@ -48,6 +56,23 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ riskLevel, companyName, answe
 
     runAnalysis();
   }, [answers, riskLevel]);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      await onSave();
+      setSaveMessage('Results saved successfully!');
+      if (isAuthenticated) {
+        setTimeout(() => {
+          navigate('/profile');
+        }, 2000);
+      }
+    } catch (error) {
+      setSaveMessage('Failed to save results. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const getRiskLevelConfig = () => {
     const riskLevelConfig = {
@@ -277,6 +302,40 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ riskLevel, companyName, answe
 
   const config = getRiskLevelConfig();
 
+  const getRiskLevelColor = (level: RiskLevel) => {
+    switch (level) {
+      case 'UNACCEPTABLE_RISK':
+        return 'text-red-600';
+      case 'HIGH_RISK':
+        return 'text-orange-600';
+      case 'LIMITED_RISK':
+        return 'text-yellow-600';
+      case 'MINIMAL_RISK':
+        return 'text-green-600';
+      case 'OUT_OF_SCOPE':
+        return 'text-gray-600';
+      default:
+        return 'text-gray-600';
+    }
+  };
+
+  const getRiskLevelDescription = (level: RiskLevel) => {
+    switch (level) {
+      case 'UNACCEPTABLE_RISK':
+        return 'Your AI system is considered unacceptable risk and is prohibited under the EU AI Act.';
+      case 'HIGH_RISK':
+        return 'Your AI system is considered high-risk and requires strict compliance measures.';
+      case 'LIMITED_RISK':
+        return 'Your AI system has limited risk and requires basic transparency obligations.';
+      case 'MINIMAL_RISK':
+        return 'Your AI system has minimal risk and is subject to basic requirements.';
+      case 'OUT_OF_SCOPE':
+        return 'Your AI system is not covered by the EU AI Act.';
+      default:
+        return 'Unable to determine risk level.';
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-brand-neutral-light via-brand-neutral-light/95 to-brand-neutral-light/90 py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
       {/* Decorative Background */}
@@ -325,9 +384,10 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ riskLevel, companyName, answe
               <h2 className="text-3xl font-bold text-gray-900 mb-4">
                 Your Risk Assessment Results
               </h2>
-              <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-                Based on your answers, we've determined your AI system's risk level and compliance requirements.
-              </p>
+              <div className={`text-xl font-semibold ${getRiskLevelColor(riskLevel)} mb-2`}>
+                {riskLevel.replace(/_/g, ' ')}
+              </div>
+              <p className="text-gray-600">{getRiskLevelDescription(riskLevel)}</p>
             </div>
 
             <div className="relative">
@@ -423,11 +483,19 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ riskLevel, companyName, answe
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
                         <p className="text-sm text-gray-500 mb-1">Company</p>
-                        <p className="text-gray-900 font-medium">{companyName}</p>
+                        <p className="text-gray-900 font-medium">{answers['company_name'] || 'Not provided'}</p>
                       </div>
                       <div>
-                        <p className="text-sm text-gray-500 mb-1">Risk Classification</p>
-                        <p className="text-gray-900 font-medium">{config.title}</p>
+                        <p className="text-sm text-gray-500 mb-1">Role</p>
+                        <p className="text-gray-900 font-medium">{answers['role'] || 'Not provided'}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500 mb-1">Purpose</p>
+                        <p className="text-gray-900 font-medium">{answers['purpose'] || 'Not provided'}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500 mb-1">Users</p>
+                        <p className="text-gray-900 font-medium">{answers['users'] || 'Not provided'}</p>
                       </div>
                     </div>
                   </div>
@@ -703,17 +771,44 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ riskLevel, companyName, answe
                 transition={{ delay: 1.1 }}
                 className="inline-block"
               >
-                <div className="bg-gradient-to-r from-purple-500 to-blue-500 rounded-2xl p-[2px]">
-                  <button
-                    onClick={() => window.location.href = 'https://buy.stripe.com/your-link'}
-                    className="w-full bg-white rounded-xl px-8 py-4 text-lg font-semibold text-gray-900 hover:bg-opacity-90 transition-all duration-200 shadow-lg hover:shadow-xl"
+                <div className="flex flex-col items-center space-y-4">
+                  {saveMessage && (
+                    <p className={`text-sm ${saveMessage.includes('success') ? 'text-green-600' : 'text-red-600'}`}>
+                      {saveMessage}
+                    </p>
+                  )}
+                  <div className="text-center space-y-4">
+                    {isAuthenticated ? (
+                      <button
+                        onClick={handleSave}
+                        disabled={isSaving}
+                        className="px-6 py-3 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-dark transition-colors disabled:opacity-50"
+                      >
+                        {isSaving ? 'Saving...' : 'Save Results'}
+                      </button>
+                    ) : (
+                      <div className="text-center">
+                        <div className="bg-gradient-to-r from-purple-500 to-blue-500 rounded-2xl p-[2px]">
+                          <Link
+                            to="/login?plan=pro&price=39"
+                            className="w-full bg-white rounded-xl px-8 py-4 text-lg font-semibold text-gray-900 hover:bg-opacity-90 transition-all duration-200 shadow-lg hover:shadow-xl inline-block"
+                          >
+                            Get Pro Plan - $39
+                          </Link>
+                        </div>
+                        <p className="mt-4 text-gray-600">
+                          One-time payment • No subscription required
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  <Link
+                    to="/"
+                    className="px-6 py-3 border border-brand-neutral-medium rounded-lg text-brand-primary hover:bg-brand-neutral-light transition-colors"
                   >
-                    Get Started Now • $29
-                  </button>
+                    Back to Home
+                  </Link>
                 </div>
-                <p className="mt-4 text-gray-600">
-                  One-time payment • No subscription required
-                </p>
               </motion.div>
             </div>
           </motion.div>
@@ -722,7 +817,7 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ riskLevel, companyName, answe
           <div className="mt-12 pt-8 border-t border-brand-neutral-medium/20">
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
               <p className="text-sm text-brand-neutral-dark">
-                Report for: {companyName} • Generated on: {new Date().toLocaleDateString()}
+                Report for: {answers['company_name'] || 'Not provided'} • Generated on: {new Date().toLocaleDateString()}
               </p>
               <p className="text-sm text-brand-neutral-dark text-center md:text-right">
                 This report is a preliminary analysis and does not constitute legal advice.
