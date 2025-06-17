@@ -352,13 +352,14 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ riskLevel, companyName, answe
                     <h4 className="text-lg font-semibold text-gray-900 mb-2">
                       Why this classification?
                     </h4>
-                    <p className="text-gray-600">
-                      {config.riskAssessment.reasons.join(', ')}
-                    </p>
+                    <ul className="list-disc list-inside text-gray-700 space-y-1 pl-2">
+                      {config.riskAssessment.reasons.map((reason: string, idx: number) => (
+                        <li key={idx} className="pl-1">{reason}</li>
+                      ))}
+                    </ul>
                   </div>
                   <div className="relative">
-                    <div className="absolute inset-0 bg-gradient-to-r from-purple-100 to-blue-100 rounded-2xl transform rotate-1"></div>
-                    <div className="relative bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-gray-100">
+                    <div className="pt-4">
                       <h4 className="text-lg font-semibold text-gray-900 mb-3">
                         What this means for you
                       </h4>
@@ -481,11 +482,82 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ riskLevel, companyName, answe
                       <div className="text-red-600 p-4 bg-red-50 rounded-lg">
                         {error}
                       </div>
-                    ) : (
-                      <div className="whitespace-pre-line text-gray-700 leading-relaxed">
-                        {aiAnalysis}
+                    ) : aiAnalysis ? (
+                      <div className="prose prose-lg max-w-none">
+                        {aiAnalysis.split('\n').map((line, index) => {
+                          // Style headings (only for lines that are meant to be headings)
+                          if (line.trim().match(/^\*\*[^*]+\*\*:?$/)) {
+                            const headingText = line.replace(/\*\*/g, '').replace(/:$/, '').trim();
+                            return (
+                              <h3 key={index} className="text-xl font-bold text-gray-900 mt-6 mb-4">
+                                {headingText}
+                              </h3>
+                            );
+                          }
+                          // Style bullet points
+                          if (line.trim().startsWith('* ')) {
+                            const content = line.replace('* ', '');
+                            // Process inline bold text
+                            const parts = content.split(/(\*\*[^*]+\*\*)/g).map((part, i) => {
+                              if (part.startsWith('**') && part.endsWith('**')) {
+                                return (
+                                  <span key={i} className="font-semibold text-gray-900">
+                                    {part.replace(/\*\*/g, '')}
+                                  </span>
+                                );
+                              }
+                              return part;
+                            });
+                            
+                            return (
+                              <div key={index} className="flex items-start gap-2 mb-4">
+                                <span className="text-brand-primary mt-1">•</span>
+                                <span className="text-gray-700">{parts}</span>
+                              </div>
+                            );
+                          }
+                          // Style numbered lists
+                          if (/^\d+\.\s/.test(line)) {
+                            const content = line.replace(/^\d+\.\s/, '');
+                            // Process inline bold text
+                            const parts = content.split(/(\*\*[^*]+\*\*)/g).map((part, i) => {
+                              if (part.startsWith('**') && part.endsWith('**')) {
+                                return (
+                                  <span key={i} className="font-semibold text-gray-900">
+                                    {part.replace(/\*\*/g, '')}
+                                  </span>
+                                );
+                              }
+                              return part;
+                            });
+
+                            return (
+                              <div key={index} className="flex items-start gap-2 mb-4">
+                                <span className="text-brand-primary font-medium">{line.match(/^\d+\./)?.[0]}</span>
+                                <span className="text-gray-700">{parts}</span>
+                              </div>
+                            );
+                          }
+                          // Regular text
+                          const parts = line.split(/(\*\*[^*]+\*\*)/g).map((part, i) => {
+                            if (part.startsWith('**') && part.endsWith('**')) {
+                              return (
+                                <span key={i} className="font-semibold text-gray-900">
+                                  {part.replace(/\*\*/g, '')}
+                                </span>
+                              );
+                            }
+                            return part;
+                          });
+
+                          return (
+                            <p key={index} className="text-gray-700 mb-4 leading-relaxed">
+                              {parts}
+                            </p>
+                          );
+                        })}
                       </div>
-                    )}
+                    ) : null}
                   </div>
                 </div>
               </div>

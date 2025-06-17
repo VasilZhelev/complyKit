@@ -13,22 +13,24 @@ export async function generateComplianceSummary(answers: Record<string, any>, ri
     try {
         console.log(answers)
         console.log("Sending request to Gemini API...");
-        const prompt = `Generate a really short AI compliance summary from the AI Eu Act with everything important so we can provide value to our customers.
-                        Some information about the user. Also dont focus on the specific position that the user is in because that is of the most value.
+        const prompt = `You're a specialist on the EU AI act and the legal side of things for ai startups and buisnesses and you are here to provide VALUE.
+                        Generate a short AI compliance summary from the AI Eu Act with everything important so we can provide value to our customers. This is a direct responce to the user filling out the form so dont use any start or end just the actual summary.
+                        Some information about the user. Also focus on the specific position that the user is in because that is of the most value.
                         - Questionnaire answers: ${answers}
+                        - Risk level: ${riskLevel}
                         The responce has to contain:
                         - A list of the most important things to consider
                         - A list of the most important things to avoid
                         - Next steps 
                         - Whatever other value you can provide for the customer according to their situation
                         Format the response in a clear, professional manner, but friendly and in a readable language, not legalese.
-                        Keep in mind you have 500 maxOutputTokens so set a limit!!!`;
+                        `;
 
         const response = await ai.models.generateContent({
             model: "gemini-2.0-flash",
             contents: prompt,
             config: {
-                maxOutputTokens: 500,
+                maxOutputTokens: 1000,
             },
         });
         
