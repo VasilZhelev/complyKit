@@ -1,8 +1,10 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
+import { useProMode } from '../../utils/ProModeContext';
 
 const Pricing = () => {
+  const { proMode, setProMode } = useProMode();
   const plans = [
     {
       name: 'Free',
@@ -123,6 +125,19 @@ const Pricing = () => {
                 >
                   {plan.cta}
                 </Link>
+                {/* Pro Mode Slider below Get Pro button for Pro plan */}
+                {plan.highlighted && (
+                  <div className="flex items-center space-x-2 bg-white/80 px-4 py-2 rounded-xl shadow border w-fit mt-4 mx-auto">
+                    <label htmlFor="pro-mode-toggle-pricing" className="font-semibold text-brand-primary">Pro Mode (Demo)</label>
+                    <input
+                      id="pro-mode-toggle-pricing"
+                      type="checkbox"
+                      checked={proMode}
+                      onChange={e => setProMode(e.target.checked)}
+                      className="w-6 h-6 accent-brand-accent cursor-pointer"
+                    />
+                  </div>
+                )}
               </div>
             </motion.div>
           ))}

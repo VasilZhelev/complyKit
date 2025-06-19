@@ -293,6 +293,7 @@ const Questionnaire: React.FC = () => {
   const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
   const [showResults, setShowResults] = useState(false);
   const [riskLevel, setRiskLevel] = useState<RiskLevel>('MINIMAL_RISK');
+  const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
 
   const handleAnswer = (questionId: string, value: string | string[]) => {
     setAnswers(prev => ({
@@ -318,30 +319,27 @@ const Questionnaire: React.FC = () => {
     }
   };
 
-  const handleSaveResults = async () => {
+  const handleSaveResults = async (aiAnalysisToSave?: string | null) => {
     const score = calculateScore();
     const result = {
       userId: user?.uid,
       timestamp: new Date().toISOString(),
       answers,
       score,
-      riskLevel
+      riskLevel,
+      aiAnalysis: aiAnalysisToSave || aiAnalysis || ''
     };
 
     try {
       if (user) {
-        // Save to database for logged-in users
         await setDocument('questionnaire_results', result);
-        // Store in localStorage as backup
         const savedResults = JSON.parse(localStorage.getItem('questionnaire_results') || '[]');
         savedResults.push(result);
         localStorage.setItem('questionnaire_results', JSON.stringify(savedResults));
       } else {
-        // For non-logged-in users, store in localStorage
         const savedResults = JSON.parse(localStorage.getItem('questionnaire_results') || '[]');
         savedResults.push(result);
         localStorage.setItem('questionnaire_results', JSON.stringify(savedResults));
-        // Redirect to signup with results in localStorage
         window.location.href = '/signup?plan=pro&price=39';
       }
     } catch (error) {
@@ -396,8 +394,10 @@ const Questionnaire: React.FC = () => {
       <ResultsPage
         answers={answers}
         riskLevel={riskLevel}
-        onSave={handleSaveResults}
+        onSave={() => handleSaveResults(aiAnalysis)}
         isAuthenticated={!!user}
+        aiAnalysis={aiAnalysis}
+        setAiAnalysis={setAiAnalysis}
       />
     );
   }

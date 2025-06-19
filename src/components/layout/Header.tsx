@@ -2,10 +2,12 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../utils/AuthContext';
+import { useProMode } from '../../utils/ProModeContext';
 
 const Header = () => {
   const [isOpen, setIsOpen] = useState(false);
   const { user, logout } = useAuth();
+  const { proMode } = useProMode();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -42,6 +44,11 @@ const Header = () => {
             <a href="/#pricing" className="text-brand-primary hover:text-brand-accent transition-colors">
               Pricing
             </a>
+            {proMode && (
+              <Link to="/dashboard" className="text-brand-primary hover:text-brand-accent transition-colors font-semibold">
+                Dashboard
+              </Link>
+            )}
             {user ? (
               <>
                 <Link to="/profile" className="text-brand-primary hover:text-brand-accent transition-colors">
@@ -123,6 +130,15 @@ const Header = () => {
               >
                 Pricing
               </a>
+              {proMode && (
+                <Link
+                  to="/dashboard"
+                  className="text-brand-primary hover:text-brand-accent transition-colors px-4 py-2 font-semibold"
+                  onClick={() => setIsOpen(false)}
+                >
+                  Dashboard
+                </Link>
+              )}
               {user ? (
                 <>
                   <Link

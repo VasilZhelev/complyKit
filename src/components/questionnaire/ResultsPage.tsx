@@ -9,17 +9,21 @@ interface ResultsPageProps {
   riskLevel: RiskLevel;
   onSave: () => Promise<void>;
   isAuthenticated: boolean;
+  aiAnalysis?: string | null;
+  setAiAnalysis?: (summary: string) => void;
 }
 
 const ResultsPage: React.FC<ResultsPageProps> = ({
   answers,
   riskLevel,
   onSave,
-  isAuthenticated
+  isAuthenticated,
+  aiAnalysis,
+  setAiAnalysis
 }) => {
   const [isAnalyzing, setIsAnalyzing] = useState(true);
   const [currentStep, setCurrentStep] = useState(0);
-  const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
+  const [aiAnalysisLocal, setAiAnalysisLocal] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
@@ -46,7 +50,8 @@ const ResultsPage: React.FC<ResultsPageProps> = ({
         // Clear the interval and update state
         clearInterval(stepInterval);
         setIsAnalyzing(false);
-        setAiAnalysis(analysis);
+        setAiAnalysis && setAiAnalysis(analysis);
+        setAiAnalysisLocal(analysis);
       } catch (error) {
         console.error('Error during analysis:', error);
         setIsAnalyzing(false);
@@ -336,6 +341,9 @@ const ResultsPage: React.FC<ResultsPageProps> = ({
     }
   };
 
+  // Use aiAnalysis prop if provided, otherwise use local state
+  const summaryToShow = aiAnalysis !== undefined ? aiAnalysis : aiAnalysisLocal;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-brand-neutral-light via-brand-neutral-light/95 to-brand-neutral-light/90 py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
       {/* Decorative Background */}
@@ -550,9 +558,9 @@ const ResultsPage: React.FC<ResultsPageProps> = ({
                       <div className="text-red-600 p-4 bg-red-50 rounded-lg">
                         {error}
                       </div>
-                    ) : aiAnalysis ? (
+                    ) : summaryToShow ? (
                       <div className="prose prose-lg max-w-none">
-                        {aiAnalysis.split('\n').map((line, index) => {
+                        {summaryToShow.split('\n').map((line, index) => {
                           // Style headings (only for lines that are meant to be headings)
                           if (line.trim().match(/^\*\*[^*]+\*\*:?$/)) {
                             const headingText = line.replace(/\*\*/g, '').replace(/:$/, '').trim();

@@ -1,8 +1,11 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
+import { useProMode } from '../../utils/ProModeContext';
 
 const Hero = () => {
+  const { proMode, setProMode } = useProMode();
+
   return (
     <section className="relative min-h-screen pt-32 pb-20 bg-gradient-to-b from-brand-neutral-light to-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -35,6 +38,17 @@ const Hero = () => {
               >
                 How it works
               </Link>
+            </div>
+            {/* Pro Mode Slider below the buttons */}
+            <div className="flex items-center space-x-2 bg-white/80 px-4 py-2 rounded-xl shadow border w-fit mt-2">
+              <label htmlFor="pro-mode-toggle" className="font-semibold text-brand-primary">Pro Mode</label>
+              <input
+                id="pro-mode-toggle"
+                type="checkbox"
+                checked={proMode}
+                onChange={e => setProMode(e.target.checked)}
+                className="w-6 h-6 accent-brand-accent cursor-pointer"
+              />
             </div>
           </motion.div>
 

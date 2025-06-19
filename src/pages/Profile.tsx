@@ -4,6 +4,7 @@ import { getDocuments, createWhereConstraint } from '../utils/db';
 import Header from '../components/layout/Header';
 import Footer from '../components/layout/Footer';
 import { useNavigate } from 'react-router-dom';
+import { useProMode } from '../utils/ProModeContext';
 
 interface QuestionnaireResult {
   id: string;
@@ -15,6 +16,7 @@ interface QuestionnaireResult {
 
 const Profile = () => {
   const { user, logout } = useAuth();
+  const { proMode } = useProMode();
   const [results, setResults] = useState<QuestionnaireResult[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -59,6 +61,13 @@ const Profile = () => {
       <Header />
       <main className="flex-grow pt-20 pb-12">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Pro Mode Indicator */}
+          {proMode && (
+            <div className="mb-6 p-4 bg-brand-accent/10 border-l-4 border-brand-accent rounded flex items-center space-x-3">
+              <span className="text-brand-accent font-bold">PRO MODE ACTIVE</span>
+              <span className="text-xs text-brand-accent bg-brand-accent/20 px-2 py-1 rounded">Demo</span>
+            </div>
+          )}
           <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
             <div className="flex justify-between items-start mb-4">
               <h1 className="text-3xl font-bold text-gray-900">Profile</h1>
